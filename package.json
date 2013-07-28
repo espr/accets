@@ -3,6 +3,10 @@
   "description": "composable asset compilation",
   "version": "0.0.1",
   "author": "espr <espr@newcu.be>",
+  "repository":"https://github.com/espr/accets.git",
+  "scripts":{
+    "test": "./node_modules/.bin/cake test"
+  },
   "dependencies": {
   },
   "devDependencies": {
@@ -12,9 +16,7 @@
     "chai":"latest",
     "sinon":"latest"
   },
-  "scripts":{
-    "test": "./node_modules/.bin/cake test"
-  },
+
   "main": "index",
   "engines": { "node": "*" }
 }

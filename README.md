@@ -2,6 +2,7 @@ accets
 =======
 
 composable asset compilation
+
 [![Build Status](https://travis-ci.org/espr/accets.png)](https://travis-ci.org/espr/accets)
 
 license
