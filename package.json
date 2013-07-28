@@ -12,6 +12,9 @@
     "chai":"latest",
     "sinon":"latest"
   },
+  "scripts":{
+    "test": "./node_modules/.bin/cake test"
+  },
   "main": "index",
   "engines": { "node": "*" }
 }
