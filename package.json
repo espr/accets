@@ -1,0 +1,17 @@
+{
+  "name": "accets",
+  "description": "composable asset compilation",
+  "version": "0.0.1",
+  "author": "espr <espr@newcu.be>",
+  "dependencies": {
+  },
+  "devDependencies": {
+    "espr-util":"latest",
+    "coffee-script":"latest",
+    "mocha":"latest",
+    "chai":"latest",
+    "sinon":"latest"
+  },
+  "main": "index",
+  "engines": { "node": "*" }
+}
