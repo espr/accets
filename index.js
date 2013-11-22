@@ -3,6 +3,8 @@ var path = require('path')
 
 var node_env = process.env.NODE_ENV || 'development';
 
+var INCLUDE_MATCHER_CSS = /^\/\*(?:=?)(?:\s*)(require|include)(?:\(|\s)(?:\s*)(?:(?:["']?)((?:\w|\/|-|\.)+)(?:["']?)(?:\)?)(?:\s*?))\*\/$/mg
+var INCLUDE_TREE_MATCHER_CSS = /^\/\*(?:=?)(?:\s*)(require_tree|include_tree)(?:\(|\s)(?:\s*)(?:(?:["']?)((?:\w|\/|-|\.)+)(?:["']?)(?:\)?)(?:\s*?))\*\/$/mg
 var INCLUDE_MATCHER_JS = /^\/\/(?:=?)(?:\s*)(require|include)(?:\(|\s)(?:\s*)(?:(?:["']?)((?:\w|\/|-|\.)+)(?:["']?)(?:\)?)(?:\s*?))$/mg
 var INCLUDE_TREE_MATCHER_JS = /^\/\/(?:=?)(?:\s*)(require_tree|include_tree)(?:\(|\s)(?:\s*)(?:(?:["']?)((?:\w|\/|-|\.)+)(?:["']?)(?:\)?)(?:\s*?))$/mg
 var INCLUDE_MATCHER_COFFEE = /^#(?:=?)(?:\s*)(require|include)(?:\(|\s)(?:\s*)(?:(?:["']?)((?:\w|\/|-|\.)+)(?:["']?)(?:\)?)(?:\s*?))$/mg
@@ -41,6 +43,9 @@ AccetSource.prototype.import = function(arg) {
       // dst.importDir(arg)
       var pthLst = fs.readdirSync(path.resolve(arg))
       for (var i = 0; i < pthLst.length; ++i) {
+        if (pthLst[i][0]==='.') {
+          continue
+        }
         var pth = pthLst[i]
         var fullPth = path.join(arg,pth)
         var lpid = pth.lastIndexOf('.')
@@ -50,7 +55,7 @@ AccetSource.prototype.import = function(arg) {
         this._map[pth].import(fullPth)
       }
     } else if (stat.isFile()) {
-      this._root_files.push(path.resolve(arg))
+      this._root_files.push(arg)
     } else {
       throw new Error('invalid file type for ',arg)
     }
@@ -76,46 +81,30 @@ AccetSource.prototype.build = function() {
   var inst = this
   var preq_str = ""
   var root_str = ""
-  for (var i = 0; i < inst._imports.length; ++i) {
-    root_str += inst._imports[0].build()
-  }
-  for (var i = 0; i < inst._root_files.length; ++i) {
-    var root_file = inst._root_files[i]
-    var lpid = root_file.lastIndexOf('.'),
-      ext = (lpid < 0) ? '' : root_file.slice(lpid+1).toLowerCase()
-    var fbuf = fs.readFileSync(root_file, {encoding: 'utf8'})
-    function _stripAndResolveRequires(mtch, mode, rel) {
-      var depAcc = inst.resolve(rel)
-      if (!depAcc) { throw new Error("could not resolve \""+rel+"\" in file "+root_file) }
-      preq_str += depAcc.build()
-      return ""
-    }
-    function _stripAndResolveRequireTrees(mtch, mode, rel) {
-      var depAcc = inst.resolve(rel)
-      if (!depAcc) { throw new Error("could not resolve \""+rel+"\" in file "+root_file) }
-      var dep_keys = Object.keys(depAcc._map)
-      for (var m = 0; m < dep_keys.length; ++m) {
-        preq_str += depAcc._map[dep_keys[m]].build()
-      }
-      return ""
-    }
-    if (ext==='js') {
-      fbuf = fbuf.replace(INCLUDE_MATCHER_JS, _stripAndResolveRequires)
-      fbuf = fbuf.replace(INCLUDE_TREE_MATCHER_JS, _stripAndResolveRequireTrees)
-    } else if (ext==='coffee') {
-      fbuf = fbuf.replace(INCLUDE_MATCHER_COFFEE, _stripAndResolveRequires)
-      fbuf = fbuf.replace(INCLUDE_TREE_MATCHER_COFFEE, _stripAndResolveRequireTrees)
-    }
+  this.makeFileList().forEach(function(cf){
+    var lpid = cf.lastIndexOf('.'),
+      ext = (lpid < 0) ? '' : cf.slice(lpid+1).toLowerCase()
+    var fbuf = fs.readFileSync(cf, {encoding: 'utf8'}).split(/\r?\n/g).map(function(fline){
+      return (fline
+        .replace(INCLUDE_MATCHER_JS,'')
+        .replace(INCLUDE_TREE_MATCHER_JS,'')
+        .replace(INCLUDE_MATCHER_COFFEE, '')
+        .replace(INCLUDE_TREE_MATCHER_COFFEE, '')
+        .replace(INCLUDE_MATCHER_CSS, '')
+        .replace(INCLUDE_TREE_MATCHER_CSS, '')
+      );
+    }).join("\n");
     if (ext in _compilers) {
-      fbuf = _compilers[ext](fbuf, {filename: root_file})
+      fbuf = _compilers[ext](fbuf, {filename: cf})
     }
     root_str += fbuf
-  }
+  });
   this._cache = preq_str+root_str
   return this._cache
 }
 
 AccetSource.prototype.resolve = function(rel) {
+  if (rel===undefined||rel==='/') return this
   if (!((typeof rel)==='string' || rel instanceof String)) { throw new Error('rel must be a string') }
   if (/\.js$/.test(rel)) { rel = rel.slice(0,rel.length-3) }
   if (/\.css$/.test(rel)) { rel = rel.slice(0,rel.length-4) }
@@ -143,19 +132,35 @@ AccetSource.prototype.resolve = function(rel) {
   return node
 }
 
-AccetSource.prototype.makeFileList = function() {
-  var inst = this
+AccetSource.prototype.makeFileList = function(rel) {
+  var inst = this.resolve(rel);
+  if (!inst) throw new Error("could not resolve \""+rel+"\"")
   var fileList = []
   for (var i = 0; i < inst._imports.length; ++i) {
-    fileList = (inst._imports[i].makeFileList()).concat(fileList)
+    fileList = (inst._imports[i].makeFileList()).concat(fileList.filter(function(fl){
+      return fileList.indexOf(fl)===-1;
+    }));
   }
   for (var i = 0; i < inst._root_files.length; ++i) {
     try {
       var ext = /\.([a-zA-Z0-9]+)$/.exec(inst._root_files[i])[1]
     } catch(e) {}
-    fbuf = fs.readFileSync(inst._root_files[i], {encoding: 'utf8'})
+    function _appendSubFiles(da) {
+      fileList = fileList.concat(da.makeFileList().filter(function(fl){
+        return fileList.indexOf(fl)===-1;
+      }));
+    }
+    function _appendSubTrees(da) {
+      _appendSubFiles(da);
+      if (da._map) {
+        var dep_keys = Object.keys(da._map)
+        for (var m = 0; m < dep_keys.length; ++m) {
+          _appendSubTrees(da._map[dep_keys[m]]);
+        }
+      }
+    }
     function _stripAndAppendRequires(mtch, mode, rel) {
-      fileList = fileList.concat(inst.resolve(rel).makeFileList())
+      _appendSubFiles(inst.resolve(rel));
       return ""
     }
     function _stripAndAppendRequireTrees(mtch, mode, rel) {
@@ -163,17 +168,24 @@ AccetSource.prototype.makeFileList = function() {
       if (!depAcc) { throw new Error("could not resolve \""+rel+"\" in file "+root_file) }
       var dep_keys = Object.keys(depAcc._map)
       for (var m = 0; m < dep_keys.length; ++m) {
-        fileList = fileList.concat(depAcc._map[dep_keys[m]].makeFileList())
+        _appendSubTrees(depAcc._map[dep_keys[m]]);
       }
       return ""
     }
+    var matchers;
     if (ext==='js') {
-      fbuf = fbuf.replace(INCLUDE_MATCHER_JS, _stripAndAppendRequires)
-      fbuf = fbuf.replace(INCLUDE_TREE_MATCHER_JS, _stripAndAppendRequireTrees)
+      matchers = {require: INCLUDE_MATCHER_JS, require_tree: INCLUDE_TREE_MATCHER_JS};
     } else if (ext==='coffee') {
-      fbuf = fbuf.replace(INCLUDE_MATCHER_COFFEE, _stripAndAppendRequires)
-      fbuf = fbuf.replace(INCLUDE_TREE_MATCHER_COFFEE, _stripAndAppendRequireTrees)
+      matchers = {require: INCLUDE_MATCHER_COFFEE, require_tree: INCLUDE_TREE_MATCHER_COFFEE};
+    } else if (ext==='css') {
+      matchers = {require: INCLUDE_MATCHER_CSS, require_tree: INCLUDE_TREE_MATCHER_CSS};
     }
+    var fbuf = fs.readFileSync(inst._root_files[i], {encoding: 'utf8'});
+    fbuf.split(/\r?\n/g).forEach(function(fline){
+      fline = fline.replace(matchers.require, _stripAndAppendRequires)
+      fline = fline.replace(matchers.require_tree, _stripAndAppendRequireTrees)
+      return fline;
+    });
     fileList.push(inst._root_files[i])
   }
   return fileList

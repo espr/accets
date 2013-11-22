@@ -1,7 +1,7 @@
 {
   "name": "accets",
   "description": "composable asset compilation",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "espr <espr@newcu.be>",
   "repository":"https://github.com/espr/accets.git",
   "scripts":{
