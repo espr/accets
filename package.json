@@ -10,7 +10,7 @@
   "dependencies": {
   },
   "devDependencies": {
-    "coffee-script": "latest",
+    "coffee-script": "~1.6",
     "mocha": "latest",
     "chai": "latest",
     "sinon": "latest"
