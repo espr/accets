@@ -1,22 +1,22 @@
 {
   "name": "accets",
   "description": "composable asset compilation",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "author": "espr <espr@newcu.be>",
-  "repository":"https://github.com/espr/accets.git",
-  "scripts":{
-    "test": "./node_modules/.bin/cake test"
+  "repository": "https://github.com/espr/accets.git",
+  "scripts": {
+    "test": "./node_modules/.bin/mocha --colors test/*_spec.* test/**/*_spec.*"
   },
   "dependencies": {
   },
   "devDependencies": {
-    "espr-util":"latest",
-    "coffee-script":"latest",
-    "mocha":"latest",
-    "chai":"latest",
-    "sinon":"latest"
+    "coffee-script": "latest",
+    "mocha": "latest",
+    "chai": "latest",
+    "sinon": "latest"
   },
-
   "main": "index",
-  "engines": { "node": "*" }
+  "engines": {
+    "node": "*"
+  }
 }

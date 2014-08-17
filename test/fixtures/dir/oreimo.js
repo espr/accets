@@ -1,3 +1,3 @@
 // require("subfile")
-// require subdir/superdeep
+// require_tree subdir
 console.log('this is oreimo.js')
