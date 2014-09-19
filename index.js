@@ -90,6 +90,9 @@ Accets.prototype.resolve = function(rel){
           for (var di in d){
             if ("."===d[di][0]) continue;
             if (d[di].indexOf(part)===0) {
+              if (d[di].length>part.length && d[di][part.length]!=='.') {
+                continue;
+              }
               spp = path.join(sp, d[di]);
               break;
             }
@@ -196,6 +199,7 @@ Accets.prototype.build = function(rel, cb){
   }
   var built = "";
   var targetext = null;
+  var relativeTo = this.relativeTo;
   this.getFileListPairs().forEach(function(pair){
     for (var ext in accets.transforms) {
       if (ext===path.extname(pair.filepath).substr(1)) {
@@ -210,7 +214,9 @@ Accets.prototype.build = function(rel, cb){
     }
     var fc = pair.instance._strippedAssets[pair.filepath];
     if (!fc) {
-      fc = fs.readFileSync(pair.filepath, {encoding:'utf8'});
+      var resolvedfilepath = pair.filepath;
+      if (relativeTo) resolvedfilepath = path.join(relativeTo, pair.filepath);
+      fc = fs.readFileSync(resolvedfilepath, {encoding:'utf8'});
       if (transform.matcher) fc = fc.replace(transform.matcher, '');
     }
     if (transform.compile) fc = transform.compile(pair.instance._strippedAssets[pair.filepath]);
